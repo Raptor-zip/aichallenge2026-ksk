@@ -5,7 +5,6 @@
   GifMPC  — MPC が 21 通りを 2 秒先まで試走 → 点数 → いちばん良い1本の最初の 0.1 秒だけ実行 → 作り直す、をくり返す様子。
 式と定数は提出コードと同じ（PP: submit-2026-07-26-pp-246、MPC: 77465d1f の _mpc_rollout）。図の数値はその式で計算した例。
 実行例: manim -r 1280,720 --fps 30 gifs.py GifPP   /   manim -r 1280,720 --fps 30 gifs.py GifMPC
-（Manim Community v0.19、フォントは Noto Sans CJK JP。GIF にするときは ffmpeg の palettegen を使う）
 """
 import math
 import sys
@@ -17,34 +16,55 @@ from manim import (
     RoundedRectangle, Scene, Text, ValueTracker, VGroup, VMobject, always_redraw, config, rate_functions,
 )
 
+BG = '#F6F4EF'          # 画面の地（生成り）  C.bg
+PANEL = '#FFFFFF'       # パネル              C.panel
+PANEL_EDGE = '#D8D3C8'  # パネルの罫線        C.panelEdge
+INK = '#1F2328'         # 本文の文字・強調の線（墨）  C.text
+TEXT2 = '#48515B'       # 説明の文字          C.text2
+DIM = '#8A9199'         # 目盛り・補足        C.dim
+KSK = '#D9531E'         # 朱：KSK・MPC        C.ksk
+PP = '#2563A6'          # 藍：Pure Pursuit    C.pp
+PP_ARC = '#7199C5'      # 藍を白で35%薄めた線（白地で約3:1）。PP の「円弧」専用：操舵の線・注視点（藍）と見分ける。文字には使わない
+SENSOR = '#0B8791'      # 青緑：LiDAR         C.sensor
+BAD = '#C62828'         # 赤：失敗・罰        C.bad
+GOOD = '#2E8540'        # 緑：うまくいった    C.good
+WARN = '#A86300'        # 山吹：注意書き・例  C.warn
+NEUTRAL = '#8C939B'     # 前の車・選ばれない棒 C.neutral
+ROAD = '#C3C9CF'        # 路面                C.road
+EDGE = '#5A636C'        # 路肩の線・走りたい線 C.edge
+KART_LINE = '#2B2F33'   # カートの輪郭・タイヤ
+PANEL_STROKE = 2        # パネルの罫線の太さ（約 2.7px @1080p）
 FONT = 'Noto Sans CJK JP'
-WHITE, TEXT2, DIM = '#FFFFFF', '#C9D6E2', '#7F90A3'
-KSK, PP, BAD, GOOD, WARN = '#FF8A1F', '#4DA3FF', '#FF4D6A', '#3DDC84', '#FFC24D'
-ROAD, EDGE = '#2A333D', '#E8EEF4'
+MathTex.set_default(color=INK)
 
 
-def jp(s, size=32, color=WHITE, weight='BOLD'):
+def jp(s, size=32, color=INK, weight='BOLD'):
     return Text(s, font=FONT, font_size=size, color=color, weight=weight)
 
 
 def kart(color, scale=0.42):
-    """上向きのカート（原点が車の中心）"""
+    """上向きのカート（原点が車の中心）。輪郭とタイヤは墨色"""
     body = Polygon([-0.34, -0.5, 0], [0.34, -0.5, 0], [0.3, 0.4, 0], [0, 0.56, 0], [-0.3, 0.4, 0],
-                   color='#0A0C0F', fill_color=color, fill_opacity=1, stroke_width=2)
-    wheels = VGroup(*[Rectangle(width=0.12, height=0.26, color='#0A0C0F', fill_color='#0A0C0F', fill_opacity=1)
+                   color=KART_LINE, fill_color=color, fill_opacity=1, stroke_width=2)
+    wheels = VGroup(*[Rectangle(width=0.12, height=0.26, color=KART_LINE, fill_color=KART_LINE, fill_opacity=1)
                       .move_to([sx * 0.42, sy, 0]) for sx in (-1, 1) for sy in (-0.3, 0.3)])
     return VGroup(wheels, body).scale(scale)
 
-config.background_color = '#070B10'
+config.background_color = BG  # ライトモード（色は formulas.py の定数 = src/theme.ts の C）
 MONO = 'Noto Sans Mono CJK JP'
 
 
-def panel(x0, x1, y0, y1, color='#1F2B38'):
-    return RoundedRectangle(corner_radius=0.18, width=x1 - x0, height=y1 - y0, color=color, fill_color='#0B1118',
-                            fill_opacity=1, stroke_width=3).move_to([(x0 + x1) / 2, (y0 + y1) / 2, 0])
+def panel(x0, x1, y0, y1, color=None):
+    """白いパネル。color を渡すと罫線をその色で半透明に"""
+    box = RoundedRectangle(corner_radius=0.18, width=x1 - x0, height=y1 - y0, color=color or PANEL_EDGE,
+                           fill_color=PANEL, fill_opacity=1, stroke_width=PANEL_STROKE
+                           ).move_to([(x0 + x1) / 2, (y0 + y1) / 2, 0])
+    if color:
+        box.set_stroke(opacity=0.55)
+    return box
 
 
-def mono(s, size=26, color=WHITE):
+def mono(s, size=26, color=INK):
     return Text(s, font=MONO, font_size=size, color=color, weight='BOLD')
 
 
@@ -113,7 +133,7 @@ class GifPP(Scene):
             g = VGroup()
             trail = [P(q['x'], q['y']) for q in sim[:min(int(k.get_value()), len(sim) - 1) + 1]]
             if len(trail) > 1:
-                g.add(VMobject(color=PP, stroke_width=5, stroke_opacity=0.55).set_points_as_corners(trail))
+                g.add(VMobject(color=PP, stroke_width=5, stroke_opacity=0.35).set_points_as_corners(trail))  # 通った跡は薄く（円弧 PP_ARC と見分ける）
             p0, pt = P(s['x'], s['y']), P(s['tx'], s['ty'])
             # 円弧（いまの向きに接し、目標点を通る）
             arc = []
@@ -129,11 +149,11 @@ class GifPP(Scene):
                     arc.append(P(s['x'] + (math.sin(s['th'] + kk * u) - math.sin(s['th'])) / kk,
                                  s['y'] - (math.cos(s['th'] + kk * u) - math.cos(s['th'])) / kk))
             g.add(DashedLine(p0, pt, color=WARN, stroke_width=3, dash_length=0.12))
-            g.add(VMobject(color='#BFE0FF', stroke_width=7).set_points_as_corners(arc))
+            g.add(VMobject(color=PP_ARC, stroke_width=7).set_points_as_corners(arc))
             g.add(Dot(pt, radius=0.11, color=PP), Circle(radius=0.22, color=PP, stroke_width=5).move_to(pt))
             car = kart(PP, 0.55).rotate(s['th'] - math.pi / 2).move_to(p0)
             wheel = Line(ORIGIN3, np.array([math.cos(s['th'] + s['delta']), math.sin(s['th'] + s['delta']), 0]) * 0.75,
-                         color=WHITE, stroke_width=6).shift(p0)
+                         color=INK, stroke_width=6).shift(p0)
             g.add(car, wheel)
             return g
 
@@ -142,11 +162,11 @@ class GifPP(Scene):
             n = min(int(k.get_value()), len(sim) - 1) + 1
             rows = VGroup(
                 jp(f'くり返し {n:2d} 回目', 30, PP),
-                MathTex(r'v = %.1f\ \mathrm{m/s}' % v, font_size=40, color=WHITE),
-                MathTex(r'L_d = 3.0 + 0.5v = %.1f\ \mathrm{m}' % ld, font_size=40, color=WHITE),
+                MathTex(r'v = %.1f\ \mathrm{m/s}' % v, font_size=40, color=INK),
+                MathTex(r'L_d = 3.0 + 0.5v = %.1f\ \mathrm{m}' % ld, font_size=40, color=INK),
                 MathTex(r'(x,\,y) = (%.2f,\ %+.2f)' % (s['xl'], s['yl']), font_size=40, color=WARN),
-                MathTex(r'\kappa = \frac{2y}{d^2} = %+.3f' % s['kap'], font_size=44, color='#BFE0FF'),
-                MathTex(r'\delta = \arctan(\kappa L) = %+.1f^\circ' % math.degrees(s['delta']), font_size=44, color=WHITE),
+                MathTex(r'\kappa = \frac{2y}{d^2} = %+.3f' % s['kap'], font_size=44, color=PP),
+                MathTex(r'\delta = \arctan(\kappa L) = %+.1f^\circ' % math.degrees(s['delta']), font_size=44, color=INK),
             ).arrange(DOWN, aligned_edge=LEFT, buff=0.32)
             if rows.width > 5.1:
                 rows.scale_to_fit_width(5.1)
@@ -272,7 +292,7 @@ class GifMPC(Scene):
         refl = make_refl()
         self.add(left, right, road, walls, refl, title, steps)
         ego = kart(KSK, 0.5).rotate(-math.pi / 2).move_to(P(0, 0)).set_z_index(5)
-        opp = kart('#A9B4C0', 0.5).rotate(-math.pi / 2).move_to(P(0, oy0)).set_z_index(5)
+        opp = kart(NEUTRAL, 0.5).rotate(-math.pi / 2).move_to(P(0, oy0)).set_z_index(5)
         self.add(ego, opp)
         rows = eval_set(0.0, 0.0, th0, v0, 0.0, oy0)
 
@@ -317,7 +337,7 @@ class GifMPC(Scene):
             for i, r in enumerate(rows_):
                 h = 0.12 + 1.35 * min(1.0, (r['J'] - lo) / (hi_ - lo + 1e-9))
                 g.add(Rectangle(width=0.2, height=h, stroke_width=0, fill_opacity=1,
-                                fill_color=GOOD if i == b else (BAD if r['bad'] else '#5B6B7C'))
+                                fill_color=GOOD if i == b else (BAD if r['bad'] else NEUTRAL))
                       .move_to([1.85 + i * 0.245, -2.75 + h / 2, 0]))
             return g
 
@@ -330,7 +350,7 @@ class GifMPC(Scene):
             [P(0, 0)] + [P(p[0], p[1]) for p in rows[best]['pts']]).set_z_index(3)
         self.play(*hi(3), Create(chosen), lines.animate.set_stroke(opacity=0.25), run_time=0.9)
         # ⑤ 0.1秒だけ実行 → くり返す（自車についていく）
-        first = Line(P(0, 0), P(rows[best]['pts'][0][0], rows[best]['pts'][0][1]), color=WHITE,
+        first = Line(P(0, 0), P(rows[best]['pts'][0][0], rows[best]['pts'][0][1]), color=INK,
                      stroke_width=12).set_z_index(4)
         self.play(*hi(4), Create(first), run_time=0.6)
         self.wait(0.3)
