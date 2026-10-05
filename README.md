@@ -13,7 +13,7 @@
 
 | パス | 中身 |
 | --- | --- |
-| `images/<記事>/` | 記事で使っている図・GIF（Qiita / Zenn / note から参照） |
+| `images/<記事>/` | 記事で使っている図・GIF（Qiita から参照） |
 | `anim/` | Pure Pursuit と MPC の計算を可視化する Manim のシーン（記事・X 用のループ GIF） |
 
 ## ライセンス
