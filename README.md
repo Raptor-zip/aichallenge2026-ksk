@@ -15,6 +15,25 @@
 | --- | --- |
 | `images/<記事>/` | 記事で使っている図・GIF（Qiita から参照） |
 | `anim/` | Pure Pursuit と MPC の計算を可視化する Manim のシーン（記事・X 用のループ GIF） |
+| `tools/check_image_urls.py` | Markdownの画像URLをGETし、PNGやGIFの全フレームを検査する道具 |
+
+## 画像の参照と確認
+
+記事の画像は、GitHub RawのURLをコミットに固定して参照します。
+
+```text
+https://raw.githubusercontent.com/Raptor-zip/aichallenge2026-ksk/<commit>/images/<article>/<image>
+```
+
+2026-10-05の確認では、旧jsDelivr経由のURLにタイムアウトやコミット取得の404が出ました。画像の総容量も約120 MBあり、[jsDelivrが公表するGitHubパッケージの50 MB制限](https://github.com/jsdelivr/data.jsdelivr.com#restrictions)を超えています。指定された画像の表示失敗そのものは再現できませんでしたが、配信経路を変更し、20原稿の197画像をGitHub Rawで取得・デコードできることを確認しました。
+
+確認するMarkdownとレポートの出力先を指定して使えます。Pillowが必要です。
+
+```bash
+python3 tools/check_image_urls.py article.md --report image-check.json
+```
+
+HTTPのステータスとContent-Typeに加え、実際の画像データを検査します。失敗したURLは一度再確認し、最初の失敗と再確認結果を両方レポートに残します。
 
 ## ライセンス
 
