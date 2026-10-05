@@ -9,6 +9,8 @@
 
 記事と動画の一覧は [LINKS.md](LINKS.md) にあります（公開のたびに追記します）。
 
+GitHubへの貢献状況は [contributions/STATUS-20261005.md](contributions/STATUS-20261005.md) にまとめています。
+
 ## このリポジトリの中身
 
 | パス | 中身 |
