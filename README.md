@@ -18,6 +18,11 @@ GitHubへの貢献状況は [contributions/STATUS-20261005.md](contributions/STA
 | `images/<記事>/` | 記事で使っている図・GIF（Qiita から参照） |
 | `anim/` | Pure Pursuit と MPC の計算を可視化する Manim のシーン（記事・X 用のループ GIF） |
 | `tools/check_image_urls.py` | Markdownの画像URLをGETし、PNGやGIFの全フレームを検査する道具 |
+| [`tools/tln_dataset_check/`](tools/tln_dataset_check/) | TinyLidarNetの学習前に、配列・ラベル・共通設定・訓練/検証の重複を診断し、JSONとHTMLを出力する道具 |
+
+## TinyLidarNetの学習前診断
+
+学習を始める前に、点数や件数の不一致、出力範囲外のラベル、訓練・検証間の同一入力を確認できます。ROSやGPUは不要で、元のデータは変更しません。[使用手順・正常/異常のデモ・検査の限界](tools/tln_dataset_check/README.md)を用意しています。
 
 ## 画像の参照と確認
 
