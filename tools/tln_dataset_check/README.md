@@ -2,6 +2,8 @@
 
 TinyLidarNetの学習を始める前に、抽出したデータと設定をまとめて点検する道具です。学習を起動せず、元のデータや重みを変更しません。ROS 2・PyTorch・GPUは不要で、NumPyとPyYAMLだけで動きます。
 
+[操作例と診断結果の読み方](../../articles/tln-dataset-check.md)も用意しています。
+
 ## 最初に試す
 
 ```bash
