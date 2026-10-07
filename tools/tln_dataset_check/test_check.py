@@ -150,6 +150,25 @@ class DatasetCheckTests(unittest.TestCase):
         self.assertNotIn("<script>x</script>", result)
         self.assertIn("&lt;script&gt;x&lt;/script&gt;", result)
 
+    def test_existing_second_report_does_not_leave_first_report(self):
+        json_path = self.root / "new.json"
+        html_path = self.root / "existing.html"
+        html_path.write_text("keep this existing report")
+        args = ["--train", str(self.train), "--val", str(self.val), "--input-dim", "8",
+                "--json", str(json_path), "--html", str(html_path)]
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(check.main(args), 2)
+        self.assertFalse(json_path.exists())
+        self.assertEqual(html_path.read_text(), "keep this existing report")
+
+    def test_reports_must_use_distinct_paths(self):
+        out = self.root / "both.json"
+        args = ["--train", str(self.train), "--val", str(self.val), "--input-dim", "8",
+                "--json", str(out), "--html", str(self.root / "." / "both.json")]
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(check.main(args), 2)
+        self.assertFalse(out.exists())
+
     def test_auxiliary_delta_times(self):
         np.save(self.train / "a/delta_times.npy", np.zeros(70))
         self.assertEqual(self.run_audit()["summary"]["warnings"], 0)

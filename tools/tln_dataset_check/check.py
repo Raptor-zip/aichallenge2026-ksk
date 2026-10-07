@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
 import hashlib
 import html
 import json
@@ -15,7 +16,7 @@ import tempfile
 import numpy as np
 import yaml
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 FILES = ("scans.npy", "steers.npy", "accelerations.npy")
 DEFAULTS = dict(input_dim=750, max_range=30.0, accel_scale=1.0, decel_scale=1.0)
 CHUNK = 1024
@@ -317,6 +318,28 @@ def positive(value: str) -> float:
     return n
 
 
+def write_reports(outputs) -> None:
+    """Reserve all outputs before writing; remove our new files on failure."""
+    selected = [(path, content) for path, content in outputs if path is not None]
+    destinations = [path.resolve() for path, _ in selected]
+    if len(set(destinations)) != len(destinations):
+        raise ValueError("JSON and HTML output paths must differ / 出力先は別のファイルにしてください")
+    created = []
+    try:
+        with ExitStack() as stack:
+            streams = []
+            for path, content in selected:
+                stream = stack.enter_context(path.open("x", encoding="utf-8"))
+                created.append(path)
+                streams.append((stream, content))
+            for stream, content in streams:
+                stream.write(content)
+    except BaseException:
+        for path in created:
+            path.unlink(missing_ok=True)
+        raise
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="TinyLidarNet .npy data check / 学習前の読み取り診断")
     ap.add_argument("--train", type=Path, required=True, help="dataset/train (direct sequence directories)")
@@ -347,11 +370,9 @@ def main(argv=None) -> int:
                                           inference=str(args.inference_common_params) if args.inference_common_params else None,
                                           include=args.include, exclude=args.exclude, accel_weight=args.accel_weight, batch_size=args.batch_size)
         encoded = json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
-        # Output may not overwrite input arrays, YAML, or an existing file. Choose new report paths.
-        for path, content in ((args.json, encoded), (args.html, render_html(report))):
-            if path is not None:
-                with path.open("x", encoding="utf-8") as out:
-                    out.write(content)
+        # Exclusive creation protects inputs and existing reports. Roll back new
+        # outputs if either reservation or writing fails.
+        write_reports(((args.json, encoded), (args.html, render_html(report))))
     except (ValueError, TypeError, AttributeError, OSError, yaml.YAMLError, sqlite3.Error) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
