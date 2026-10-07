@@ -24,6 +24,8 @@ GitHubへの貢献状況は [contributions/STATUS-20261005.md](contributions/STA
 
 学習を始める前に、点数や件数の不一致、出力範囲外のラベル、訓練・検証間の同一入力を確認できます。ROSやGPUは不要で、元のデータは変更しません。[使用手順・正常/異常のデモ・検査の限界](tools/tln_dataset_check/README.md)を用意しています。
 
+[操作例と診断結果の読み方](articles/tln-dataset-check.md)では、合成データで試す完全な手順と、抽出済み24走行の検証条件を説明しています。
+
 ## 画像の参照と確認
 
 記事の画像は、GitHub RawのURLをコミットに固定して参照します。
